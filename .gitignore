@@ -1,0 +1,6 @@
+*.npy
+*.txt
+*.json
+*.pt
+*.pth
+.idea/
