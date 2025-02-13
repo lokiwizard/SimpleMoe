@@ -98,7 +98,7 @@ def main():
     model = model.to(device)
     model.eval()
 
-    prompt = "hello."
+    prompt = "I like"
     num_tokens_to_generate = 20
 
     # Load the tokenizer

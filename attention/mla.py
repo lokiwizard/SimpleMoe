@@ -53,7 +53,7 @@ class RopelessMLA_Uncompressed(torch.nn.Module):
 
         # split into multiple heads
         q_heads = Q.view(B, -1, self.n_heads, self.dh).transpose(1, 2)
-        k_heads = K.view(B, -1, self.n_heads, self.dh).transpose(1, 2)
+        k_heads = K.view(B, -1, self.n_heads, self.dh).transpose(1, 2)  # [B, n_heads, S, dh]
         v_heads = V.view(B, -1, self.n_heads, self.dh).transpose(1, 2)
 
         # KV Cache logic
