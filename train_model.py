@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from torch.cuda.amp import GradScaler
 from torch.utils.data import DataLoader, TensorDataset
 import time
+from tqdm import tqdm
 
 def cosine_with_warmup_lr_scheduler(opt, total_steps, warmup_steps):
     def thunk(stepnum):
@@ -60,7 +61,7 @@ def train():
     scaler = GradScaler()
     acc_steps = 4
 
-    batch_size = 12 # should fit on 3090, might take a while
+    batch_size = 32 # should fit on 3090, might take a while
     # lr and betas for adamW from gpt-2-medium
     opt = torch.optim.AdamW(model.parameters(), lr=6e-4, betas=(0.9, 0.999))
     # determine cosine schedule based on roughly total steps, ~100m token dataset
@@ -81,43 +82,48 @@ def train():
     train_losses_y = []
     train_losses_x = []
 
-    # epochs = 1
-    for i, (dat, targ) in enumerate(dataloader):
-        dat, targ = dat.to(device, non_blocking=True), targ.to(device, non_blocking=True)
-        targ = targ.to(dtype=torch.long)
+    epochs = 20
+    for epoch in range(epochs):
+        pbar = tqdm(enumerate(dataloader), total=len(dataloader))
+        pbar.set_description(f"Epoch {epoch}")
 
-        print(f"{i}/{len(dataloader)}")
+        for i, (dat, targ) in pbar:
+            dat, targ = dat.to(device, non_blocking=True), targ.to(device, non_blocking=True)
+            targ = targ.to(dtype=torch.long)
 
-        # https://pytorch.org/docs/stable/amp.html
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            out, _ = model(dat)
-            out = out.permute(0, 2, 1)
-            loss = loss_fn(out, targ)
-            loss = loss / acc_steps
+            #print(f"{i}/{len(dataloader)}")
 
-        scaler.scale(loss).backward()
+            # https://pytorch.org/docs/stable/amp.html
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                out, _ = model(dat)
+                out = out.permute(0, 2, 1)
+                loss = loss_fn(out, targ)
+                loss = loss / acc_steps
 
-        if (i+1) % acc_steps == 0:
-            scaler.unscale_(opt)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            scaler.scale(loss).backward()
 
-            scaler.step(opt)
-            scaler.update()
-            scheduler.step()
-            opt.zero_grad(set_to_none=True)
+            if (i+1) % acc_steps == 0:
+                scaler.unscale_(opt)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
 
-        # logging total tokens is just S * batch size
-        total_tokens += dat.numel()
+                scaler.step(opt)
+                scaler.update()
+                scheduler.step()
+                opt.zero_grad(set_to_none=True)
 
-        # log every 10 effective batches
-        if (i + 1) % (10 * acc_steps) == 0:
-            train_losses_x.append(total_tokens)
-            train_losses_y.append(loss.item())
-            print(f"{i}/{len(dataloader)}", loss.item())
-            plot_loss_curve(train_losses_x, train_losses_y)
+            # logging total tokens is just S * batch size
+            total_tokens += dat.numel()
 
-    # save model weights
-    torch.save(model.state_dict(), "./weights/model_weights.pt")
+            # log every 10 effective batches
+            if (i + 1) % (10 * acc_steps) == 0:
+                train_losses_x.append(total_tokens)
+                train_losses_y.append(loss.item())
+                #print(f"{i}/{len(dataloader)}", loss.item())
+                pbar.set_postfix(loss=loss.item())
+                plot_loss_curve(train_losses_x, train_losses_y)
+
+        # save model weights
+        torch.save(model.state_dict(), "./weights/model_weights.pt")
 
 if __name__ == "__main__":
     train()
