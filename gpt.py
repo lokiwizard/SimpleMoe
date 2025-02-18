@@ -79,17 +79,18 @@ class GPTModel(torch.nn.Module):
         # 每两个dense block后面加一个moe block
         self.layers = torch.nn.ModuleList()
         for i in range(1, layers+1):
-            self.layers.append(TransformerDecoderBlock(d_model, n_heads,
-                                    use_mla=use_mla, use_mqa=use_mqa,
-                                    cache_compress=cache_compress,
-                                    use_rope=use_rope,
-                                    use_decoupled=use_decoupled, mode="dense"))
             if i % 3 == 0:
                 self.layers.append(TransformerDecoderBlock(d_model, n_heads,
                                     use_mla=use_mla, use_mqa=use_mqa,
                                     cache_compress=cache_compress,
                                     use_rope=use_rope,
                                     use_decoupled=use_decoupled, mode="moe"))
+            else:
+                self.layers.append(TransformerDecoderBlock(d_model, n_heads,
+                                        use_mla=use_mla, use_mqa=use_mqa,
+                                        cache_compress=cache_compress,
+                                        use_rope=use_rope,
+                                        use_decoupled=use_decoupled, mode="dense"))
 
         self.fc_out = CustomLinear(d_model, vocab_size)
 
@@ -124,7 +125,7 @@ class GPTModel(torch.nn.Module):
 if __name__ == "__main__":
     d_model = 256
     n_heads = 8
-    layers = 9
+    layers = 3
     vocab_size = 100
     max_seq_len = 1024
     use_mla = True
@@ -138,6 +139,7 @@ if __name__ == "__main__":
                         cache_compress=cache_compress, use_rope=use_rope,
                         use_decoupled=use_decoupled)
     x = torch.randint(0, vocab_size, (1, 4))
-    out, _ = model(x)
-    print(model)
+    out, kv_cache = model(x)
     #print(out.shape)
+    print(kv_cache[0].shape)
+    #print(model)

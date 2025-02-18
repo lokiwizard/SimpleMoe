@@ -1,7 +1,7 @@
 import torch
 import math
 
-from .utils import apply_rope, apply_rope_x
+from attention.utils import apply_rope, apply_rope_x
 
 
 class MHA(torch.nn.Module):
@@ -246,3 +246,8 @@ class Decoupled_Rope_MHA(torch.nn.Module):
         x = x @ self.wo.T
 
         return x, (k_heads, v_heads)
+
+if __name__ == "__main__":
+    rope_mha = Rope_MHA(256, 8)
+    x = torch.randn(1, 10, 256)
+    out, _ = rope_mha(x)

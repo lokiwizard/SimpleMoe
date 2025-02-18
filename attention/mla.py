@@ -11,7 +11,7 @@ https://huggingface.co/deepseek-ai/DeepSeek-Coder-V2-Instruct/blob/main/config.j
 import torch
 import math
 
-from .utils import apply_rope_x
+from attention.utils import apply_rope_x
 
 class RopelessMLA_Uncompressed(torch.nn.Module):
 
@@ -274,4 +274,12 @@ class MLA(torch.nn.Module):
         x = x @ self.W_o.T
 
         return x, compressed_kv
+
+if __name__ == '__main__':
+    # Test
+    model = MLA(512, 8)
+    x = torch.randn(1, 1024, 512)
+    out, kv_cache = model(x)
+    print(out.shape, kv_cache.shape)
+
 
